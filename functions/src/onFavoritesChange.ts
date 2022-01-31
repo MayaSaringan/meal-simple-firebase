@@ -45,15 +45,18 @@ const favoriteHelper = (userId: string, itemId: string, isAdding: boolean) => {
 };
 // a trigger
 export const onItemFavoriteChange = functions.firestore
-    .document("accounts/{userId}/itemFavorites/{itemId}")
+    .document("accounts/{userId}/itemsPrivate/{itemId}")
     .onWrite(async (change, {params}): Promise<void> => {
       console.log("onItemFavorite Triggered");
-      const document = change.after.exists ? change.after.data() : null;
+      const documentBefore = change.before.exists ? change.before.data() : null;
+      const documentAfter = change.after.exists ? change.after.data() : null;
 
       if (
-        !document ||
-      (change.before.data()?.favorited !== document.favorited &&
-        !document.favorited)
+        !documentAfter ||
+      (!documentBefore && !documentAfter.favorited) ||
+      (documentBefore &&
+        documentAfter.favorited !== documentBefore.favorited &&
+        !documentAfter.favorited)
       ) {
       // remove from favoritedBy, if item still exists
         try {
@@ -62,7 +65,7 @@ export const onItemFavoriteChange = functions.firestore
           console.error(e);
           return;
         }
-      } else {
+      } else if (documentAfter.favorited) {
       // add to favoritedBy, if item still exists
         try {
           await favoriteHelper(params.userId, params.itemId, true);

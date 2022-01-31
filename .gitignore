@@ -1,6 +1,9 @@
 functions/key
 functions/lib
 
+firestore.indexes.json
+firestore.rules
+
 # Logs
 logs
 *.log
