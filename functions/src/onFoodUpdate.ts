@@ -10,12 +10,12 @@ import {BasicFood, FoodID, ProfileID} from "./types";
 
 const buildFoodFromSnap = (
     snapData: FirebaseFirestore.DocumentData,
-    userId: ProfileID,
 ): BasicFood => {
   return {
     name: snapData.name,
     numLikes: snapData.likes.length,
-    isLiked: snapData.likes.includes(userId),
+    isLiked: snapData.likes.includes(snapData.owner),
+    owner: snapData.owner,
   };
 };
 
@@ -58,11 +58,10 @@ const overwriteFoodInAllCollections = async (
 };
 
 const overwriteFoodInPersonalCollection = async (
-    userId: ProfileID,
     foodId: FoodID,
     food: BasicFood,
 ): Promise<void> => {
-  const profileData = await getProfile(userId);
+  const profileData = await getProfile(food.owner);
   const foodCollId = profileData.foodsCollection;
   const foodContentCollRef = getContentForCollection(foodCollId);
   const foodCollData = await getCollection(foodCollId);
@@ -83,21 +82,17 @@ const overwriteFoodInPersonalCollection = async (
 };
 export const onCreateFood = functions.firestore
     .document("foods/{itemId}")
-    .onCreate(async (snap, context): Promise<void> => {
+    .onCreate(async (snap): Promise<void> => {
       console.log("onCreateFood Triggered");
       try {
-        const uid = context?.auth?.uid;
-        const itemID = context.params.itemId;
-        if (!uid) {
-          throw new Error("No valid uid");
-        }
-
         const snapData = snap.data();
-        const data = buildFoodFromSnap(snapData, uid);
+        const itemID = snap.id;
+
+        const data = buildFoodFromSnap(snapData);
         if (snapData.access === "public") {
           await overwriteFoodInAllCollections(itemID, data);
         }
-        await overwriteFoodInPersonalCollection(uid, itemID, data);
+        await overwriteFoodInPersonalCollection(itemID, data);
 
         return;
       } catch (e) {
@@ -107,21 +102,17 @@ export const onCreateFood = functions.firestore
 
 export const onUpdateFood = functions.firestore
     .document("foods/{itemId}")
-    .onUpdate(async (change, context): Promise<void> => {
+    .onUpdate(async (change): Promise<void> => {
       console.log("onUpdateFood Triggered");
       try {
-        const uid = context?.auth?.uid;
-        const itemID = context.params.itemId;
-        if (!uid) {
-          throw new Error("No valid uid");
-        }
         const snapData = change.after.data();
-        const data = buildFoodFromSnap(snapData, uid);
+        const itemID = change.after.id;
+        const data = buildFoodFromSnap(snapData);
 
         if (snapData.access === "public") {
           await overwriteFoodInAllCollections(itemID, data);
         }
-        await overwriteFoodInPersonalCollection(uid, itemID, data);
+        await overwriteFoodInPersonalCollection(itemID, data);
 
         return;
       } catch (e) {
@@ -131,20 +122,16 @@ export const onUpdateFood = functions.firestore
 
 export const onDeleteFood = functions.firestore
     .document("foods/{itemId}")
-    .onDelete(async (snap, context): Promise<void> => {
-      console.log("onDeleteFood Triggered", context.params.itemId);
+    .onDelete(async (snap): Promise<void> => {
+      console.log("onDeleteFood Triggered");
       try {
-        const uid = context?.auth?.uid;
-        const itemId = context.params.itemId;
-        if (!uid) {
-          throw new Error("No valid uid");
-        }
+        const itemId = snap.id;
 
         const snapData = snap.data();
         if (snapData.access === "public") {
           await deleteFoodInAllCollections(itemId);
         }
-        await deleteFoodInPersonalCollection(uid, itemId);
+        await deleteFoodInPersonalCollection(snapData.owner, itemId);
       } catch (e) {
         console.log(e);
       }

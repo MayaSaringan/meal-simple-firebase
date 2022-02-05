@@ -22,6 +22,7 @@ export interface Food {
   name: string;
   likes: string[];
   access: "public" | "private";
+  owner: ProfileID;
 }
 
 export type FoodID = string;
@@ -30,6 +31,7 @@ export interface BasicFood {
   name: string;
   numLikes: number;
   isLiked: boolean;
+  owner: ProfileID;
 }
 
 export interface Feed {
