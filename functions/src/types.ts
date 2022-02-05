@@ -13,6 +13,11 @@ export interface Collection {
 
 export type CollectionID = string;
 
+export interface BasicCollection {
+  owner: string;
+  content: BasicFood[];
+}
+
 export interface Food {
   name: string;
   likes: string[];

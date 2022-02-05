@@ -2,9 +2,10 @@ import * as functions from "firebase-functions";
 import {
   getContentForCollection,
   getAllProfiles,
-  getAllCollections,
   getProfile,
+  getCollection,
 } from "./common";
+import {onUpdateCollectionFn} from "./onCollectionUpdate";
 import {BasicFood, FoodID, ProfileID} from "./types";
 
 const buildFoodFromSnap = (
@@ -17,6 +18,34 @@ const buildFoodFromSnap = (
     isLiked: snapData.likes.includes(userId),
   };
 };
+
+const deleteFoodInAllCollections = async (foodId: FoodID): Promise<void> => {
+  const profiles = await getAllProfiles();
+  profiles.forEach(async ({value}) => {
+    const foodContentCollRef = getContentForCollection(value.foodsCollection);
+    await foodContentCollRef.doc(foodId).delete();
+  });
+};
+
+const deleteFoodInPersonalCollection = async (
+    userId: ProfileID,
+    foodId: FoodID,
+): Promise<void> => {
+  const profileData = await getProfile(userId);
+
+  const foodCollId = profileData.foodsCollection;
+  const foodContentCollRef = getContentForCollection(foodCollId);
+  const foodCollData = await getCollection(foodCollId);
+  await foodContentCollRef.doc(foodId).delete();
+  await onUpdateCollectionFn(userId, foodCollId, foodCollData);
+
+  const likesCollId = profileData.likesCollection;
+  const likesCollData = await getCollection(likesCollId);
+  const likesContentCollRef = getContentForCollection(likesCollId);
+  await likesContentCollRef.doc(foodId).delete();
+  await onUpdateCollectionFn(userId, likesCollId, likesCollData);
+};
+
 const overwriteFoodInAllCollections = async (
     foodId: FoodID,
     food: BasicFood,
@@ -34,10 +63,23 @@ const overwriteFoodInPersonalCollection = async (
     food: BasicFood,
 ): Promise<void> => {
   const profileData = await getProfile(userId);
-  const foodContentCollRef = getContentForCollection(
-      profileData.foodsCollection,
-  );
+  const foodCollId = profileData.foodsCollection;
+  const foodContentCollRef = getContentForCollection(foodCollId);
+  const foodCollData = await getCollection(foodCollId);
   await foodContentCollRef.doc(foodId).set(food);
+  await onUpdateCollectionFn(userId, foodCollId, foodCollData);
+  const likesCollId = profileData.likesCollection;
+  const likesCollData = await getCollection(likesCollId);
+  const likesContentCollRef = getContentForCollection(likesCollId);
+  if (food.isLiked) {
+    await likesContentCollRef.doc(foodId).set(food);
+  } else {
+    const foodRef = await likesContentCollRef.doc(foodId).get();
+    if (foodRef.exists) {
+      await likesContentCollRef.doc(foodId).delete();
+    }
+  }
+  await onUpdateCollectionFn(userId, likesCollId, likesCollData);
 };
 export const onCreateFood = functions.firestore
     .document("foods/{itemId}")
@@ -53,10 +95,10 @@ export const onCreateFood = functions.firestore
         const snapData = snap.data();
         const data = buildFoodFromSnap(snapData, uid);
         if (snapData.access === "public") {
-          overwriteFoodInAllCollections(itemID, data);
-        } else {
-          overwriteFoodInPersonalCollection(uid, itemID, data);
+          await overwriteFoodInAllCollections(itemID, data);
         }
+        await overwriteFoodInPersonalCollection(uid, itemID, data);
+
         return;
       } catch (e) {
         console.log(e);
@@ -77,10 +119,10 @@ export const onUpdateFood = functions.firestore
         const data = buildFoodFromSnap(snapData, uid);
 
         if (snapData.access === "public") {
-          overwriteFoodInAllCollections(itemID, data);
-        } else {
-          overwriteFoodInPersonalCollection(uid, itemID, data);
+          await overwriteFoodInAllCollections(itemID, data);
         }
+        await overwriteFoodInPersonalCollection(uid, itemID, data);
+
         return;
       } catch (e) {
         console.log(e);
@@ -89,7 +131,7 @@ export const onUpdateFood = functions.firestore
 
 export const onDeleteFood = functions.firestore
     .document("foods/{itemId}")
-    .onDelete(async (_, context): Promise<void> => {
+    .onDelete(async (snap, context): Promise<void> => {
       console.log("onDeleteFood Triggered", context.params.itemId);
       try {
         const uid = context?.auth?.uid;
@@ -97,10 +139,12 @@ export const onDeleteFood = functions.firestore
         if (!uid) {
           throw new Error("No valid uid");
         }
-        const collections = await getAllCollections();
-        collections.forEach(async ({id}) => {
-          await getContentForCollection(id).doc(itemId).delete();
-        });
+
+        const snapData = snap.data();
+        if (snapData.access === "public") {
+          await deleteFoodInAllCollections(itemId);
+        }
+        await deleteFoodInPersonalCollection(uid, itemId);
       } catch (e) {
         console.log(e);
       }

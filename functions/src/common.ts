@@ -3,6 +3,7 @@ import {firestore} from "firebase-admin";
 import {
   Collection,
   CollectionID,
+  Feed,
   FeedID,
   Food,
   FoodID,
@@ -67,16 +68,27 @@ export const getContentForCollection = (
   return getCollectionCollRef().doc(collId).collection("content");
 };
 
+export const getCollection = async (
+    collId: CollectionID,
+): Promise<Collection> => {
+  const doc = await getCollectionDocRef(collId).get();
+  const docData = doc.data();
+  if (doc.exists && docData) {
+    return docData as Collection;
+  } else {
+    throw new Error(`Collection for ${collId} does not exist.`);
+  }
+};
 export const getAllCollections = async (): Promise<
   { id: CollectionID; value: Collection }[]
 > => {
-  const allProfilesQuery = await getProfileCollRef().get();
-  const allProfilesSnaps = await allProfilesQuery.docs;
-  const snaps = await Promise.all(allProfilesSnaps);
+  const allCollections = await getCollectionCollRef().get();
+  const allCollectionSnaps = await allCollections.docs;
+  const snaps = await Promise.all(allCollectionSnaps);
   const content: { id: CollectionID; value: Collection }[] = [];
-  snaps.forEach((s) =>
-    content.push({id: s.id as CollectionID, value: s.data() as Collection}),
-  );
+  snaps.forEach(async (s) => {
+    content.push({id: s.id as CollectionID, value: s.data() as Collection});
+  });
   return content;
 };
 
@@ -134,6 +146,13 @@ export const updateFood = async (foodId: FoodID, data: Food): Promise<void> => {
   await getFoodDocRef(foodId).update(data);
 };
 
+export const getFeedCollRef = (): firestore.CollectionReference => {
+  return admin.firestore().collection("feeds");
+};
+
+export const getFeedDocRef = (feedId: FeedID): firestore.DocumentReference => {
+  return getFeedCollRef().doc(feedId);
+};
 export const createFeed = async (owner: ProfileID): Promise<string> => {
   const res = await admin.firestore().collection("feeds").add({owner});
   const resGet = await res.get();
@@ -146,4 +165,21 @@ export const createFeed = async (owner: ProfileID): Promise<string> => {
 
 export const deleteFeed = async (feedId: FeedID): Promise<void> => {
   await admin.firestore().collection("feeds").doc(feedId).delete();
+};
+
+export const getContentForFeed = (
+    feedId: FeedID,
+): firestore.CollectionReference => {
+  return getFeedDocRef(feedId).collection("content");
+};
+
+export const getAllFeeds = async (): Promise<{ id: FeedID; value: Feed }[]> => {
+  const allFeeds = await getFeedCollRef().get();
+  const allFeedSnaps = await allFeeds.docs;
+  const snaps = await Promise.all(allFeedSnaps);
+  const content: { id: FeedID; value: Feed }[] = [];
+  snaps.forEach((s) =>
+    content.push({id: s.id as FeedID, value: s.data() as Feed}),
+  );
+  return content;
 };
