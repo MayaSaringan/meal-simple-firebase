@@ -14,7 +14,7 @@ describe("Food updates", () => {
   const myUid: ProfileID = "testUid";
   const foodId: ProfileID = "testFood";
   let profData: Profile;
-  let foodData: BasicFood;
+
   before(async () => {
     await getProfileDocRef(myUid).set({name: "Test"});
     await snooz();
@@ -39,28 +39,39 @@ describe("Food updates", () => {
     return {exists, data: exists ? (docData as BasicFood) : undefined};
   };
 
+  const addFood = async (isLiked: boolean) => {
+    await getFoodDocRef(foodId).set({
+      name: "Banana",
+      owner: myUid,
+      likes: isLiked ? [myUid] : [],
+    });
+    await snooz();
+  };
+
+  const editFood = async (change: Partial<Food>) => {
+    await getFoodDocRef(foodId).update(change);
+    await snooz();
+  };
+
+  const deleteFood = async () => {
+    await getFoodDocRef(foodId).delete();
+    await snooz();
+  };
+
   describe("onCreateFood works as expected", () => {
-    const addFood = async (isLiked: boolean) => {
-      await getFoodDocRef(foodId).set({
-        name: "Banana",
-        owner: myUid,
-        likes: isLiked ? [myUid] : [],
-      });
-      await snooz();
-      const {data} = await getFoodCollectionData(profData.foodsCollection);
-      if (data) {
-        foodData = data;
-      }
-    };
+    after(async () => {
+      await deleteFood();
+    });
 
     it("food collection data is correct", async () => {
       await addFood(false);
+      const {data} = await getFoodCollectionData(profData.foodsCollection);
       expect({
         name: "Banana",
         owner: myUid,
         isLiked: false,
         numLikes: 0,
-      }).deep.eq(foodData);
+      }).deep.eq(data);
     });
 
     it("adds food to personal collection", async () => {
@@ -84,32 +95,21 @@ describe("Food updates", () => {
 
   describe("onUpdateFood works as expected", () => {
     before(async () => {
-      await getFoodDocRef(foodId).set({
-        name: "Banana",
-        owner: myUid,
-        likes: [],
-      });
-      await snooz();
-      profData = await getProfile(myUid);
+      await addFood(false);
     });
-
-    const editFood = async (change: Partial<Food>) => {
-      await getFoodDocRef(foodId).update(change);
-      await snooz();
-      const {data} = await getFoodCollectionData(profData.foodsCollection);
-      if (data) {
-        foodData = data;
-      }
-    };
+    after(async () => {
+      await deleteFood();
+    });
 
     it("food collection data is correct", async () => {
       await editFood({name: "Banana V2"});
+      const {data} = await getFoodCollectionData(profData.foodsCollection);
       expect({
         name: "Banana V2",
         owner: myUid,
         isLiked: false,
         numLikes: 0,
-      }).deep.eq(foodData);
+      }).deep.eq(data);
     });
 
     it("food edit cascades to personal collection", async () => {
@@ -134,6 +134,23 @@ describe("Food updates", () => {
     it("food edit does remove from likes collection", async () => {
       await editFood({likes: [myUid]});
       await editFood({likes: []});
+      const res = await getFoodCollectionData(profData.likesCollection);
+      expect(res.exists).false;
+    });
+  });
+
+  describe("onDeleteFood works as expected", () => {
+    before(async () => {
+      await addFood(true);
+      await deleteFood();
+    });
+
+    it("food delete cascades to personal collection", async () => {
+      const res = await getFoodCollectionData(profData.foodsCollection);
+      expect(res.exists).false;
+    });
+
+    it("food edit does cascades to likes collection", async () => {
       const res = await getFoodCollectionData(profData.likesCollection);
       expect(res.exists).false;
     });
