@@ -1,48 +1,29 @@
 import * as functions from "firebase-functions";
 import {
-  createCollectionDoc,
-  getCollectionCollRef,
-  getCollectionDoc,
-  getCollectionDocContentCollRef,
-  getProfileDocRef,
+  createCollection,
+  createFeed,
+  deleteCollections,
+  deleteFeed,
+  updateProfile,
 } from "./common";
-
-const deleteCollections = async (owner: string) => {
-  const query = await getCollectionCollRef().where("owner", "==", owner).get();
-  const snaps = await Promise.all(query.docs);
-  {
-    snaps.forEach(async (snap) => {
-      const collectionRef = getCollectionDocContentCollRef(snap.id);
-      const contentQuery = await collectionRef.get();
-      contentQuery.docs.forEach((contentSnap) => contentSnap.ref.delete());
-    });
-  }
-  {
-    snaps.forEach((snap) => {
-      return getCollectionDoc(snap.id).delete();
-    });
-  }
-};
+import {Profile} from "./types";
 
 // a trigger
 export const onCreateProfile = functions.firestore
     .document("profiles/{userId}")
-    .onCreate(async (snap, context): Promise<void> => {
+    .onCreate(async (snap): Promise<void> => {
       console.log("onCreateProfile Triggered");
       try {
-        const profileSnap = await getProfileDocRef(context.params.userId).get();
-
-        if (profileSnap.exists) {
-          const likesCollId = await createCollectionDoc(snap.id);
-          const foodsCollId = await createCollectionDoc(snap.id);
-          await getProfileDocRef(context.params.userId).update({
-            likesCollection: likesCollId,
-            foodsCollection: foodsCollId,
-            collections: [],
-          });
-        } else {
-          throw new Error("Profile does not exist");
-        }
+        const userId = snap.id;
+        const likesCollId = await createCollection(userId);
+        const foodsCollId = await createCollection(userId);
+        const feedId = await createFeed(userId);
+        await updateProfile(userId, {
+          likesCollection: likesCollId,
+          foodsCollection: foodsCollId,
+          collections: [],
+          feed: feedId,
+        });
       } catch (e) {
         console.log(e);
       }
@@ -54,7 +35,9 @@ export const onDeleteProfile = functions.firestore
       console.log("onDeleteProfile Triggered");
       try {
         const deletedId = snap.id;
-        await deleteCollections(deletedId);
+        const snapData = snap.data() as Profile;
+        await deleteCollections(["owner", "==", deletedId]);
+        await deleteFeed(snapData.feed);
       } catch (e) {
         console.log(e);
       }

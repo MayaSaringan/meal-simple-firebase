@@ -1,9 +1,10 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import {ProfileID} from "./types";
 
 // assumes admin was initialized by caller
 
-const getItemsCollRef = (userId: string) => {
+const getItemsCollRef = (userId: ProfileID) => {
   return admin
       .firestore()
       .collection("accounts")
@@ -18,7 +19,11 @@ const getPublicItemsCollRef = () => {
       .doc("public")
       .collection("items");
 };
-const favoriteHelper = (userId: string, itemId: string, isAdding: boolean) => {
+const favoriteHelper = (
+    userId: ProfileID,
+    itemId: string,
+    isAdding: boolean,
+) => {
   return getItemsCollRef(userId)
       .doc(itemId)
       .get()
