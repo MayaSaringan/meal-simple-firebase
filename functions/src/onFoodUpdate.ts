@@ -37,13 +37,13 @@ const deleteFoodInPersonalCollection = async (
   const foodContentCollRef = getContentForCollection(foodCollId);
   const foodCollData = await getCollection(foodCollId);
   await foodContentCollRef.doc(foodId).delete();
-  await onUpdateCollectionFn(userId, foodCollId, foodCollData);
+  await onUpdateCollectionFn(foodCollId, foodCollData);
 
   const likesCollId = profileData.likesCollection;
   const likesCollData = await getCollection(likesCollId);
   const likesContentCollRef = getContentForCollection(likesCollId);
   await likesContentCollRef.doc(foodId).delete();
-  await onUpdateCollectionFn(userId, likesCollId, likesCollData);
+  await onUpdateCollectionFn(likesCollId, likesCollData);
 };
 
 const overwriteFoodInAllCollections = async (
@@ -67,7 +67,7 @@ const overwriteFoodInPersonalCollection = async (
   const foodContentCollRef = getContentForCollection(foodCollId);
   const foodCollData = await getCollection(foodCollId);
   await foodContentCollRef.doc(foodId).set(food);
-  await onUpdateCollectionFn(userId, foodCollId, foodCollData);
+  await onUpdateCollectionFn(foodCollId, foodCollData);
   const likesCollId = profileData.likesCollection;
   const likesCollData = await getCollection(likesCollId);
   const likesContentCollRef = getContentForCollection(likesCollId);
@@ -79,7 +79,7 @@ const overwriteFoodInPersonalCollection = async (
       await likesContentCollRef.doc(foodId).delete();
     }
   }
-  await onUpdateCollectionFn(userId, likesCollId, likesCollData);
+  await onUpdateCollectionFn(likesCollId, likesCollData);
 };
 export const onCreateFood = functions.firestore
     .document("foods/{itemId}")

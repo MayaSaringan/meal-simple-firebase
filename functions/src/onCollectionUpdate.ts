@@ -30,7 +30,6 @@ const overwriteInPersonalFeed = async (
 };
 
 export const onUpdateCollectionFn = async (
-    uid: ProfileID,
     collId: CollectionID,
     snapData: FirebaseFirestore.DocumentData,
 ): Promise<void> => {
@@ -48,23 +47,19 @@ export const onUpdateCollectionFn = async (
   if (snapData.access === "public") {
     await overwriteInAllFeeds(collId, feedData);
   } else {
-    await overwriteInPersonalFeed(uid, collId, feedData);
+    await overwriteInPersonalFeed(snapData.owner, collId, feedData);
   }
   return;
 };
 
 export const onCreateCollection = functions.firestore
     .document("collections/{collId}")
-    .onCreate(async (snap, context): Promise<void> => {
+    .onCreate(async (snap): Promise<void> => {
       console.log("onCreateCollection Triggered");
       try {
-        const uid = context?.auth?.uid;
         const collId = snap.id;
-        if (!uid) {
-          throw new Error("No valid uid");
-        }
         const snapData = snap.data();
-        onUpdateCollectionFn(uid, collId, snapData);
+        onUpdateCollectionFn(collId, snapData);
         return;
       } catch (e) {
         console.log(e);
@@ -73,16 +68,12 @@ export const onCreateCollection = functions.firestore
 
 export const onUpdateCollection = functions.firestore
     .document("collections/{collId}")
-    .onUpdate(async (change, context): Promise<void> => {
+    .onUpdate(async (change): Promise<void> => {
       console.log("onUpdateCollection Triggered");
       try {
-        const uid = context?.auth?.uid;
         const collId = change.after.id;
-        if (!uid) {
-          throw new Error("No valid uid");
-        }
         const snapData = change.after.data();
-        onUpdateCollectionFn(uid, collId, snapData);
+        onUpdateCollectionFn(collId, snapData);
       } catch (e) {
         console.log(e);
       }
@@ -93,11 +84,7 @@ export const onDeleteCollection = functions.firestore
     .onDelete(async (snap, context): Promise<void> => {
       console.log("onDeleteCollection Triggered", context.params.itemId);
       try {
-        const uid = context?.auth?.uid;
         const collId = snap.id;
-        if (!uid) {
-          throw new Error("No valid uid");
-        }
         const feeds = await getAllFeeds();
         feeds.forEach(async ({id}) => {
           await getContentForFeed(id).doc(collId).delete();

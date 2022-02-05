@@ -4,7 +4,6 @@ import {
   createFeed,
   deleteCollections,
   deleteFeed,
-  updateProfile,
 } from "./common";
 import {Profile} from "./types";
 
@@ -18,7 +17,7 @@ export const onCreateProfile = functions.firestore
         const likesCollId = await createCollection(userId);
         const foodsCollId = await createCollection(userId);
         const feedId = await createFeed(userId);
-        await updateProfile(userId, {
+        snap.ref.set({
           likesCollection: likesCollId,
           foodsCollection: foodsCollId,
           collections: [],

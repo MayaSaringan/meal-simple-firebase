@@ -36,7 +36,11 @@ export const updateProfile = async (
     userId: ProfileID,
     data: Profile,
 ): Promise<void> => {
-  await getProfileDocRef(userId).update(data);
+  await getProfileDocRef(userId).set(data);
+};
+
+export const deleteProfile = async (userId: ProfileID): Promise<void> => {
+  await getProfileDocRef(userId).delete();
 };
 
 export const getAllProfiles = async (): Promise<
@@ -152,6 +156,16 @@ export const getFeedCollRef = (): firestore.CollectionReference => {
 
 export const getFeedDocRef = (feedId: FeedID): firestore.DocumentReference => {
   return getFeedCollRef().doc(feedId);
+};
+
+export const getFeed = async (feedId: FeedID): Promise<Feed> => {
+  const doc = await getFeedDocRef(feedId).get();
+  const docData = doc.data();
+  if (doc.exists && docData) {
+    return docData as Feed;
+  } else {
+    throw new Error(`Feed for ${feedId} does not exist.`);
+  }
 };
 export const createFeed = async (owner: ProfileID): Promise<string> => {
   const res = await admin.firestore().collection("feeds").add({owner});
