@@ -13,17 +13,34 @@ Requires [Node.js](https://nodejs.org/) v14.15.0. Lower versions are likely not 
 Used: https://firebase.google.com/docs/functions/get-started?authuser=0 for startup
 
 ```sh
-npm install
+yarn
 ```
 
-## Local Testing
+## Linting
+
+Test locally with emulator
 
 ```sh
-npm run serve
+yarn super:fix
+```
+
+## Local Manual Testing
+
+Test locally with emulator
+
+```sh
+yarn serve
+```
+
+### Run unit tests in isolated environment
+
+```sh
+yarn build
+yarn test
 ```
 
 ## Deployment
 
 ```sh
-npm run deploy
+yarn deploy:functions
 ```

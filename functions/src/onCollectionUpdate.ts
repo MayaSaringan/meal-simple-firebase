@@ -59,7 +59,7 @@ export const onCreateCollection = functions.firestore
       try {
         const collId = snap.id;
         const snapData = snap.data();
-        onUpdateCollectionFn(collId, snapData);
+        await onUpdateCollectionFn(collId, snapData);
         return;
       } catch (e) {
         console.log(e);
@@ -73,7 +73,7 @@ export const onUpdateCollection = functions.firestore
       try {
         const collId = change.after.id;
         const snapData = change.after.data();
-        onUpdateCollectionFn(collId, snapData);
+        await onUpdateCollectionFn(collId, snapData);
       } catch (e) {
         console.log(e);
       }
@@ -81,14 +81,14 @@ export const onUpdateCollection = functions.firestore
 
 export const onDeleteCollection = functions.firestore
     .document("collections/{collId}")
-    .onDelete(async (snap, context): Promise<void> => {
-      console.log("onDeleteCollection Triggered", context.params.itemId);
+    .onDelete(async (snap): Promise<void> => {
+      console.log("onDeleteCollection Triggered");
       try {
         const collId = snap.id;
         const feeds = await getAllFeeds();
-        feeds.forEach(async ({id}) => {
-          await getContentForFeed(id).doc(collId).delete();
-        });
+        await Promise.all(feeds.map(async ({id}) => {
+          return await getContentForFeed(id).doc(collId).delete();
+        }));
       } catch (e) {
         console.log(e);
       }

@@ -6,12 +6,13 @@
     "prettier:fix": "prettier --config .prettierrc \"**/*.{json,js,jsx,ts,tsx,css,scss,md}\" --write",
     "super:fix": "npm run prettier:fix && npm run lint:fix",
     "build": "tsc",
-    "serve": "npm run build && firebase emulators:start --only functions",
+    "serve": "npm run build && firebase emulators:start",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
-    "deploy": "firebase deploy --only functions",
+    "deploy:functions": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "test": "ts-mocha src/test/**.* --reporter spec --recursive --timeout 5000"
+    "test:mocha": "ts-mocha src/test/**.* --reporter spec --recursive --timeout 5000",
+    "test": "firebase emulators:exec \"yarn test:mocha --exit\""
   },
   "engines": {
     "node": "14"
