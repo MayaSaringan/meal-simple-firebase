@@ -47,6 +47,14 @@ If failing, try to increase timeout on test helper method for sleeping. Function
 yarn deploy:functions
 ```
 
+## Backup
+
+In the event that you want to overwrite the firestore with an admin account and (re-)add new items, you can use (Not recommended unless everything went terribly wrong 🙈
+
+```sh
+npx ts-node src\backup\populateFromScratch.ts
+```
+
 ## Debugging
 
 If on windows and the port is taken, do the following to kill the process taking up the port:

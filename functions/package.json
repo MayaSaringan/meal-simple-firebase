@@ -39,6 +39,7 @@
     "prettier": "^2.3.2",
     "sinon": "^13.0.1",
     "ts-mocha": "^9.0.2",
+    "ts-node": "^10.4.0",
     "typescript": "^3.8.0"
   },
   "private": true

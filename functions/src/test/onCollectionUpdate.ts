@@ -16,7 +16,7 @@ describe("Collection updates", () => {
 
   before(async () => {
     await getProfileDocRef(myUid).set({owner: myUid});
-    await snooz();
+    await snooz(1000);
   });
   after(async () => {
     await getProfileDocRef(myUid).delete();
