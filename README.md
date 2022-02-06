@@ -32,15 +32,26 @@ Test locally with emulator
 yarn serve
 ```
 
-### Run unit tests in isolated environment
+### Run integration tests in isolated environment
 
 ```sh
 yarn build
 yarn test
 ```
 
+If failing, try to increase timeout on test helper method for sleeping. Functions still need to improve their execution speeds / implement a debounce functionaility to be more resilient to delays.
+
 ## Deployment
 
 ```sh
 yarn deploy:functions
+```
+
+## Debugging
+
+If on windows and the port is taken, do the following to kill the process taking up the port:
+
+```sh
+netstat -ano | findstr :8080
+taskkill /PID <pid> /F
 ```

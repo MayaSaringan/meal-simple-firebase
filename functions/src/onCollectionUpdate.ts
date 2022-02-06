@@ -13,10 +13,12 @@ const overwriteInAllFeeds = async (
     collection: BasicCollection,
 ): Promise<void> => {
   const feeds = await getAllFeeds();
-  feeds.forEach(async ({id}) => {
-    const feedDoc = getFeedDocRef(id);
-    await feedDoc.collection("content").doc(collId).set(collection);
-  });
+  await Promise.all(
+      feeds.map(async ({id}) => {
+        const feedDoc = getFeedDocRef(id);
+        await feedDoc.collection("content").doc(collId).set(collection);
+      }),
+  );
 };
 
 const overwriteInPersonalFeed = async (
@@ -86,9 +88,11 @@ export const onDeleteCollection = functions.firestore
       try {
         const collId = snap.id;
         const feeds = await getAllFeeds();
-        await Promise.all(feeds.map(async ({id}) => {
-          return await getContentForFeed(id).doc(collId).delete();
-        }));
+        await Promise.all(
+            feeds.map(async ({id}) => {
+              return await getContentForFeed(id).doc(collId).delete();
+            }),
+        );
       } catch (e) {
         console.log(e);
       }

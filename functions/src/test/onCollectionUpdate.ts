@@ -1,11 +1,11 @@
 import {expect} from "chai";
 import {
-  getCollectionDocRef, 
-  getContentForFeed, 
-  getProfile, 
+  getCollectionDocRef,
+  getContentForFeed,
+  getProfile,
   getProfileDocRef,
 } from "../common";
-import {BasicCollection,  CollectionID, FeedID,   ProfileID} from "../types";
+import {BasicCollection, CollectionID, ProfileID} from "../types";
 import {snooz} from "./common";
 
 require("../index");
@@ -23,12 +23,11 @@ describe("Collection updates", () => {
     await snooz();
   });
 
-  const getFeedCollectionData = async (
-  ): Promise<{
+  const getFeedCollectionData = async (): Promise<{
     exists: boolean;
     data: BasicCollection | undefined;
   }> => {
-    const profData = await getProfile(myUid)
+    const profData = await getProfile(myUid);
     const contentRef = await getContentForFeed(profData.feed);
     const snap = await contentRef.doc(collId);
     const ref = await snap.get();
@@ -59,7 +58,7 @@ describe("Collection updates", () => {
       const {data} = await getFeedCollectionData();
       expect({
         owner: myUid,
-        content: []
+        content: [],
       }).deep.eq(data);
     });
   });

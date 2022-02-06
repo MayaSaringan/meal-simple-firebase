@@ -6,7 +6,14 @@ import {
   getCollection,
 } from "./common";
 import {onUpdateCollectionFn} from "./onCollectionUpdate";
-import {BasicFood, FoodID, ProfileID} from "./types";
+import {
+  BasicFood,
+  CollectionID,
+  Food,
+  FoodID,
+  Profile,
+  ProfileID,
+} from "./types";
 
 const buildFoodFromSnap = (
     snapData: FirebaseFirestore.DocumentData,
@@ -46,54 +53,78 @@ const deleteFoodInPersonalCollection = async (
   await onUpdateCollectionFn(likesCollId, likesCollData);
 };
 
-const overwriteFoodInAllCollections = async (
+const overwriteFoodInCollection = async (
+    collId: CollectionID,
     foodId: FoodID,
     food: BasicFood,
 ): Promise<void> => {
-  const profiles = await getAllProfiles();
-  profiles.forEach(async ({value}) => {
-    const foodContentCollRef = getContentForCollection(value.foodsCollection);
-    await foodContentCollRef.doc(foodId).set(food);
-  });
+  const ref = getContentForCollection(collId);
+  await ref.doc(foodId).set(food);
+  const foodCollData = await getCollection(collId);
+  await onUpdateCollectionFn(collId, foodCollData);
 };
 
-const overwriteFoodInPersonalCollection = async (
+const deleteFoodInCollection = async (
+    collId: CollectionID,
     foodId: FoodID,
-    food: BasicFood,
 ): Promise<void> => {
-  const profileData = await getProfile(food.owner);
-  const foodCollId = profileData.foodsCollection;
-  const foodContentCollRef = getContentForCollection(foodCollId);
-  const foodCollData = await getCollection(foodCollId);
-  await foodContentCollRef.doc(foodId).set(food);
-  await onUpdateCollectionFn(foodCollId, foodCollData);
-  const likesCollId = profileData.likesCollection;
-  const likesCollData = await getCollection(likesCollId);
-  const likesContentCollRef = getContentForCollection(likesCollId);
-  if (food.isLiked) {
-    await likesContentCollRef.doc(foodId).set(food);
-  } else {
-    const foodRef = await likesContentCollRef.doc(foodId).get();
-    if (foodRef.exists) {
-      await likesContentCollRef.doc(foodId).delete();
-    }
-  }
-  await onUpdateCollectionFn(likesCollId, likesCollData);
+  const ref = getContentForCollection(collId);
+  await ref.doc(foodId).delete();
+  const foodCollData = await getCollection(collId);
+  await onUpdateCollectionFn(collId, foodCollData);
 };
+const overwriteFoodInProfile = async (
+    {id, value}: { id: ProfileID; value: Profile },
+    foodId: FoodID,
+    originalFood: Food,
+): Promise<void> => {
+  const food = buildFoodFromSnap(originalFood);
+  const collIds = [value.foodsCollection, value.likesCollection];
+  const deleteInstead = [false, false];
+  if (!originalFood.likes.includes(id)) {
+    deleteInstead[1] = true;
+  }
+  await Promise.all(
+      collIds.map((collId, idx) => {
+        if (deleteInstead[idx]) {
+          return deleteFoodInCollection(collId, foodId);
+        }
+        return overwriteFoodInCollection(collId, foodId, food);
+      }),
+  );
+};
+
+const overwriteFoodInCollections = async (
+    foodId: FoodID,
+    originalFood: Food,
+): Promise<void> => {
+  const food = buildFoodFromSnap(originalFood);
+  if (originalFood.access === "public") {
+    const profiles = await getAllProfiles();
+    await Promise.all(
+        profiles.map((profile) => {
+          return overwriteFoodInProfile(profile, foodId, originalFood);
+        }),
+    );
+  } else {
+    const profileData = await getProfile(food.owner);
+    await overwriteFoodInProfile(
+        {id: food.owner, value: profileData},
+        foodId,
+        originalFood,
+    );
+  }
+};
+
 export const onCreateFood = functions.firestore
     .document("foods/{itemId}")
     .onCreate(async (snap): Promise<void> => {
       console.log("onCreateFood Triggered");
       try {
-        const snapData = snap.data();
+        const snapData = snap.data() as Food;
         const itemID = snap.id;
 
-        const data = buildFoodFromSnap(snapData);
-        if (snapData.access === "public") {
-          await overwriteFoodInAllCollections(itemID, data);
-        }
-        await overwriteFoodInPersonalCollection(itemID, data);
-
+        await overwriteFoodInCollections(itemID, snapData);
         return;
       } catch (e) {
         console.log(e);
@@ -105,14 +136,9 @@ export const onUpdateFood = functions.firestore
     .onUpdate(async (change): Promise<void> => {
       console.log("onUpdateFood Triggered");
       try {
-        const snapData = change.after.data();
+        const snapData = change.after.data() as Food;
         const itemID = change.after.id;
-        const data = buildFoodFromSnap(snapData);
-
-        if (snapData.access === "public") {
-          await overwriteFoodInAllCollections(itemID, data);
-        }
-        await overwriteFoodInPersonalCollection(itemID, data);
+        await overwriteFoodInCollections(itemID, snapData);
 
         return;
       } catch (e) {

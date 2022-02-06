@@ -14,10 +14,18 @@ export const onCreateProfile = functions.firestore
       console.log("onCreateProfile Triggered");
       try {
         const userId = snap.id;
-        const likesCollId = await createCollection(userId);
-        const foodsCollId = await createCollection(userId);
-        const feedId = await createFeed(userId);
-        snap.ref.set({
+        const objectsToCreate = ["collection", "collection", "feed"];
+        const [likesCollId, foodsCollId, feedId] = await Promise.all(
+            objectsToCreate.map((type) => {
+              if (type === "collection") {
+                return createCollection(userId);
+              } else if (type === "feed") {
+                return createFeed(userId);
+              }
+              throw new Error("unexpected type");
+            }),
+        );
+        await snap.ref.set({
           likesCollection: likesCollId,
           foodsCollection: foodsCollId,
           collections: [],
